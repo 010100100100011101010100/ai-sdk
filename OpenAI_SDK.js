@@ -1,9 +1,10 @@
 import {createOpenAI} from "@ai-sdk/openai";
-import {generateText} from 'ai';
+import {generateText,generateImage} from 'ai';
 import {openai , OpenAIResponseProviderOptions} from "ai-sdk/openai";
 import {fs} from 'fs';
 import {streamText} from 'ai';
-
+import {experimental_transcribe as transcribe} from 'ai';
+import {experimental_generateSpeech as generateSpeech} from 'ai';
 const openai=createOpenAI({
     name:"Open Router",
     baseURL:"https://openrouter.com/api/v1",
@@ -374,6 +375,107 @@ console.log(pdfResult1);
 
 //Revisiting Structured Outputs
 //We can manipulate the format of the output into structures defined by us
+//We can do so using generateObject or streamObject - We can also do so using generateText
+
+const structuredOutput=await generateText({
+    model:openai("gpt-4.1"),
+    prompt:"What is the color of the moon?",
+    experimental_output:Output.object({
+        schema:z.object({
+            planetName:z.string(),
+            color:z.array(z.string()), //multi colors
+        }),
+    }),
+});
+
+
+
+
+//Completion API (Complete a sentence,story,etc)
+const completionModel=openai.completion("gpt-3.5-turbo-instruct",{
+    echo:true, //shows the original prompt as well beside the output
+    logitBias:{'51672':-100}, //tokenId : BiasValue (-100,100)
+    logprobs:5, //probs of top n tokens
+    user:'sampleUser',
+    suffix:"add this at the end of every prompt"
+});
+
+
+
+
+//Embedding model -> Convert input into vectors which are readable by the model
+const EmbeddingModel=openai.embedding("text-embedding-3-large",{
+    dimension:3,
+    user:"test-user"
+});
+
+
+//Create image using DALL E model from openAI
+
+const imageModel=openai.image("dall-e-3");
+
+//We can also have the support of provider Options 
+
+const {image}=await generateImage({
+    model:imageModel,
+    prompt:"Generate shrek in star wars",
+    providerOptions:{
+        openai:{
+            quality:"high"
+        },
+    },
+});
+
+console.log(image);
+
+
+
+//Transcription Models : Audio to Text Essentially -> OpenAI has whisper
+const transcribeResult=await transcribe({
+    model:openai.transcriptions("whisper"),
+    audio:new Uint8Array([1,2,3,4,5]),
+    providerOptions:{
+        openai:{
+            language:'en'//transcribed in english language
+        }
+    }
+});
+
+
+`There are timestampGranularities which allow us to segment the transcription based on words/sentences
+ prompt -> We can add in some extra instructions,
+ temperature -> Creativity of the application,
+ include -> adds in extra details with the transcription
+`
+
+
+
+
+//Speech Models (text to speech) -> OpenAI has tts-1
+const speechResult=await generateSpeech({
+    model:openai.speech("tts-1"),
+    text:"Hello,how are you friend",
+    providerOptions:{
+        openai:{
+            instructions:"Speak in slow and calm voice", //this does not work with tts-1
+            response_format:'wav',
+            speed:0.9 //ranges from 0.25 (very slow) to 4 (very fast)
+
+        }
+    },
+});
+
+
+const audioBlob=new Blob([speechResult.audio],{type:'audio/wav'});
+const audioURL=new URL.createObjectURL(audioBlob);
+const audio=new Audio(audioURL);
+
+audio.play();
+
+
+
+
+
 
 
 
