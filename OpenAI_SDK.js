@@ -2,6 +2,7 @@ import {createOpenAI} from "@ai-sdk/openai";
 import {generateText} from 'ai';
 import {openai , OpenAIResponseProviderOptions} from "ai-sdk/openai";
 import {fs} from 'fs';
+import {streamText} from 'ai';
 
 const openai=createOpenAI({
     name:"Open Router",
@@ -303,20 +304,76 @@ const webResults=await generateText({
 console.log(webResults.sources);
 
 
+//To see the reasoning and thinking process of Models, we can use reasoningSummary  (Only Possible for reasoning models)
+//Set level as "auto" to receive the richest level of reasoning data
+
+const reasoningResult=streamText({
+    model:openai.responses('o1-mini'),
+    prompt:'What is the most controversial song by Metallica',
+    providerOptions:{
+        openai:{
+            reasoningSummary:'auto'//can also detailed
+        },
+    },
+    
+
+});
+
+for await(const part of reasoningResult.fullStream){
+    if(part.type=="reasoning"){
+        console.log(`Reasoning:${part.textDelta}`);
+    }
+    else if (part.type=="text-delta"){
+        process.stdout.write(part.textDelta);
+    }
+};
+//Text delta is the small amounts of text pieces which are being streamed to the client side
+
+
+//For non streaming calls, we can simply use generateText
+const nonStreamingReasonResult=await generateText({
+    model:openai('gpt-4-mini'),
+    prompt:"Who is the best singer in the bollywood",
+    providerOptions:{
+        openai:{
+            reasoningSummary:"detailed"
+        }
+    },
+});
+console.log(nonStreamingReasonResult);
+
+
+//Revisiting our PDF support for the openAI model
+const pdfResult1=await generateText({
+    model:openai("gpt-4o-mini"),
+    messages:[
+        {
+            role:"user",
+            content:[
+                {
+                    type:"text",
+                    text:"What does this paper talk about"
+                },
+                {
+                    type:"file",
+                    data:fs.readFilySync('./data/ai.pdf'),
+                    mimeType:"application/pdf",
+                    fileName:"AI PDF"
+                },
+            ],
+        },
+    ],
+});
+
+console.log(pdfResult1);
 
 
 
 
 
 
-
-
-
-
-
-
-
-
+//Revisiting Structured Outputs
+//We can manipulate the format of the output into structures defined by us
 
 
 
